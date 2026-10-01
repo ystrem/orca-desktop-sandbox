@@ -1,0 +1,45 @@
+# Orca Desktop netfilter — restrict outbound to remote orca serve hosts only
+# Thin client: no need for LLM API providers on the local machine.
+
+# Allow loopback
+-A OUTPUT -o lo -j ACCEPT
+-A INPUT  -i lo -j ACCEPT
+
+# Allow DNS (required for name resolution of remote hosts)
+# Note: Firejail resolves hostnames to IPs when the sandbox initializes.
+-A OUTPUT -p udp --dport 53 -j ACCEPT
+-A OUTPUT -p tcp --dport 53 -j ACCEPT
+
+# Allow DHCP
+-A OUTPUT -p udp --dport 67:68 -j ACCEPT
+
+# Allow ICMP (ping, path MTU)
+-A OUTPUT -p icmp -j ACCEPT
+
+# Allow established/related connections (responses to our outbound)
+-A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+-A INPUT  -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+# === Local network ===
+-A OUTPUT -d 127.0.0.1/32 -j ACCEPT
+-A OUTPUT -d ::1/128 -j ACCEPT
+
+# === Remote Orca servers (REQUIRED) ===
+# Uncomment and set your orca serve / Remote Orca Server addresses.
+# Tailscale addresses typically start with 100.
+# -A OUTPUT -d 100.64.1.20/32 -j ACCEPT
+# -A OUTPUT -d 192.168.1.50/32 -j ACCEPT
+
+# === Optional: GitHub (auto-updates / release downloads) ===
+# -A OUTPUT -d github.com -j ACCEPT
+# -A OUTPUT -d api.github.com -j ACCEPT
+# -A OUTPUT -d objects.githubusercontent.com -j ACCEPT
+# -A OUTPUT -d release-assets.githubusercontent.com -j ACCEPT
+
+# === Optional: Orca relay / mobile pairing coordination ===
+# Uncomment if you use Orca Relay for pairing when LAN/Tailscale is unavailable.
+# -A OUTPUT -d <relay-hostname-or-ip> -j ACCEPT
+
+# Drop everything else
+-A OUTPUT -j REJECT
+-A INPUT  -j DROP

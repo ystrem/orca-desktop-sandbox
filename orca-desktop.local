@@ -1,0 +1,127 @@
+# Firejail profile for Orca ADE Desktop (Electron) — thin client to remote orca serve
+# ~/.config/firejail/orca-desktop.local
+#
+# Local app only needs UI + pairing state. Code/worktrees/agents run on remote.
+
+# --- Capabilities ---
+caps.drop all
+
+# --- Network ---
+# Restrict to specific IPs via custom netfilter rules.
+# NOTE: Firejail requires creating a network namespace for netfilter rules to apply.
+# If netfilter is ignored, uncomment 'net default' or pass '--net=default' to firejail.
+# net default
+netfilter ${HOME}/.config/firejail/orca-desktop.net
+protocol unix,inet,inet6
+
+# --- Filesystem ---
+# Private /tmp (fresh tmpfs each run)
+private-tmp
+
+# Home: read-only by default, whitelist only what the thin client needs
+read-only ${HOME}
+
+# Orca state (pairing tokens, settings, server list)
+read-write ${HOME}/.orca
+
+# Electron app data & user config (names vary by channel/build)
+read-write ${HOME}/.config/Orca
+read-write ${HOME}/.config/orca
+read-write ${HOME}/.config/orca-ide
+read-write ${HOME}/.local/share/Orca
+read-write ${HOME}/.local/share/orca
+read-write ${HOME}/.cache/Orca
+read-write ${HOME}/.cache/orca
+
+# XDG font cache (Electron needs this sometimes)
+read-write ${HOME}/.config/fontconfig
+read-write ${HOME}/.cache/fontconfig
+
+# PulseAudio / PipeWire (for microphone + audio)
+read-write ${HOME}/.config/pulse
+read-write ${HOME}/.config/pipewire
+read-write ${HOME}/.config/alsa
+read-only ${XDG_RUNTIME_DIR}/pulse
+read-only ${XDG_RUNTIME_DIR}/pipewire-0
+
+# Block sensitive paths entirely
+blacklist ${HOME}/.ssh
+blacklist ${HOME}/.gnupg
+blacklist ${HOME}/.password-store
+blacklist ${HOME}/.config/1Password
+blacklist ${HOME}/.config/Bitwarden
+blacklist ${HOME}/.config/KeePassXC
+blacklist ${HOME}/.config/chromium
+blacklist ${HOME}/.config/google-chrome
+blacklist ${HOME}/.config/BraveSoftware
+blacklist ${HOME}/.config/microsoft-edge
+blacklist ${HOME}/.config/mozilla
+blacklist ${HOME}/.mozilla
+blacklist ${HOME}/.config/opera
+blacklist ${HOME}/.config/Vivaldi
+blacklist ${HOME}/.bash_history
+blacklist ${HOME}/.zsh_history
+blacklist ${HOME}/.fish_history
+blacklist ${HOME}/.python_history
+blacklist ${HOME}/.lesshst
+blacklist ${HOME}/.mysql_history
+blacklist ${HOME}/.psql_history
+blacklist ${HOME}/.config/gh
+blacklist ${HOME}/.aws
+blacklist ${HOME}/.azure
+blacklist ${HOME}/.kube
+blacklist ${HOME}/.config/gcloud
+blacklist ${HOME}/.vault-token
+blacklist ${HOME}/.boto
+blacklist ${HOME}/.netrc
+blacklist ${HOME}/.docker
+blacklist ${HOME}/.git-credentials*
+blacklist ${HOME}/.npmrc
+blacklist ${HOME}/.pypirc
+blacklist ${HOME}/.cargo/credentials*
+
+# Runtime sockets — prevent container escape if user is in docker group
+blacklist /var/run/docker.sock
+blacklist /run/docker.sock
+blacklist /run/podman/podman.sock
+blacklist /run/containerd/containerd.sock
+
+# --- Devices ---
+private-dev
+noblacklist /dev/snd
+nodvd
+nou2f
+
+# Allow audio (microphone for dictation)
+# Remove 'nogroups' so /dev/snd is accessible
+# nogroups
+
+# --- Kernel security ---
+seccomp
+noroot
+# no3d   # uncomment if software rendering is acceptable
+notv
+nocpu
+
+# --- D-Bus ---
+# Left open for PulseAudio/PipeWire and notifications.
+# For stricter isolation: dbus-user none / dbus-system none (test audio first).
+# nodbus
+# nodbus-user
+
+# --- Shell ---
+shell none
+
+# --- Remounts ---
+disable-mnt
+
+# --- Environment (preserve display + audio) ---
+env DISPLAY=${DISPLAY}
+env WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
+env XAUTHORITY=${XAUTHORITY}
+env XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}
+env PULSE_SERVER=${PULSE_SERVER}
+env PULSE_RUNTIME_PATH=${PULSE_RUNTIME_PATH}
+
+# Stronger X11 isolation (optional, requires xorg-xephyr):
+# x11 xorg
