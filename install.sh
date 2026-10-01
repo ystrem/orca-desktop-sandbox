@@ -140,9 +140,15 @@ if [ -n "${FOUND_APPIMAGE}" ]; then
     echo "  ✓ Found local executable: ${FOUND_APPIMAGE}"
 else
     echo "  ⚠️  No local Orca AppImage found."
-    echo "  Download from: https://www.onorca.dev/download"
-    echo "  or: https://github.com/stablyai/orca/releases"
-    echo "  Then place it in ~/.local/bin or set ORCA_APPIMAGE."
+    echo "  ==> Attempting to fetch latest mirrored AppImage from GitHub Releases..."
+    if "${BIN_DIR}/orca-desktop-sandbox" --download; then
+        echo "  ✓ Mirrored AppImage downloaded successfully!"
+    else
+        echo "  ⚠️  Could not download mirrored release yet (Actions may not have published one)."
+        echo "  Download manually from: https://github.com/stablyai/orca/releases"
+        echo "  or: https://www.onorca.dev/download"
+        echo "  Place AppImage in ~/.local/bin or set ORCA_APPIMAGE."
+    fi
 fi
 
 echo ""
@@ -151,4 +157,5 @@ echo "Before first run, edit your network rules:"
 echo "  vim ${PROFILE_DIR}/orca-desktop.net"
 echo ""
 echo "Then launch via application menu or run:  orca-desktop-sandbox"
+echo "To update the AppImage anytime:           orca-desktop-sandbox --update"
 echo ""

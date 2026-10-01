@@ -28,6 +28,7 @@ Sandboxing with Firejail restricts:
 | `orca-desktop.net` | Netfilter rules — restrict to specific IPs/domains |
 | `run-orca-desktop.sh` | Wrapper script to launch the sandboxed desktop & check for updates |
 | `install.sh` | Setup script (copies profiles, launcher, desktop entry) |
+| `.github/workflows/mirror-orca.yml` | GitHub Actions — mirrors official Orca Linux AppImage every 6h |
 | `SECURITY-REVIEW.md` | Known gaps and hardening notes |
 
 ## Quick start
@@ -52,6 +53,8 @@ orca-desktop-sandbox
 
 ## Features
 
+* **Mirrored AppImages via GitHub Actions** — workflow checks `stablyai/orca` every 6 hours and re-publishes the official Linux AppImage to this repo’s Releases (tag `orca-vX.Y.Z`)
+* **One-Click Auto-Updates** — `orca-desktop-sandbox --update` downloads the latest mirrored AppImage
 * **Desktop Menu Entry** — creates `~/.local/share/applications/orca-desktop-sandbox.desktop`
 * **CLI Argument Forwarding** — pass flags directly to the AppImage (e.g. `orca-desktop-sandbox --devtools`)
 * **Flexible Binary Discovery** — auto-detects AppImages, unpacked executables, or `ORCA_APPIMAGE`
@@ -79,6 +82,7 @@ To whitelist your remote `orca serve` hosts, edit `~/.config/firejail/orca-deskt
 | Variable | Purpose | Default |
 | --- | --- | --- |
 | `ORCA_APPIMAGE` | Path to explicit Orca AppImage or executable | Auto-detected |
+| `ORCA_SANDBOX_REPO` | `owner/repo` for mirrored releases | `ystrem/orca-desktop-sandbox` |
 | `ORCA_PROFILE_DIR` | Firejail profiles directory | `${HOME}/.config/firejail` |
 | `ORCA_BIN_DIR` | Executable launcher bin directory | `${HOME}/.local/bin` |
 | `ORCA_DESKTOP_DIR` | XDG desktop entries directory | `${HOME}/.local/share/applications` |
@@ -104,14 +108,15 @@ Microphone works — the profile preserves PulseAudio/PipeWire sockets and `/dev
 | Kernel | No new privileges, seccomp |
 | Capabilities | All dropped |
 
-## Building / finding Orca locally
+## GitHub Actions (mirror)
 
-Download from [onorca.dev/download](https://www.onorca.dev/download) or [GitHub Releases](https://github.com/stablyai/orca/releases):
+Unlike Hermes (which builds the AppImage from source), Orca already publishes official Linux AppImages. This repo’s workflow:
 
-* `orca-linux.AppImage`
-* `.deb` / `.rpm` packages
+1. Polls [stablyai/orca](https://github.com/stablyai/orca) releases every 6 hours (and on manual dispatch)
+2. Downloads the official `orca-linux.AppImage` (or any `*.AppImage` fallback)
+3. Creates a release here tagged `orca-vX.Y.Z` with the unmodified binary + SHA256
 
-The launcher auto-detects AppImages in `~/.local/bin`, `~/Applications`, and common paths.
+Trigger manually: **Actions → Mirror Orca Linux AppImage → Run workflow** (optionally force).
 
 ## Related
 
