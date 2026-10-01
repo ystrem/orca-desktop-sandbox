@@ -97,7 +97,6 @@ EOF
 chmod +x "${DESKTOP_FILE}"
 echo "  → ${DESKTOP_FILE}"
 
-# Check if BIN_DIR is in PATH
 if [[ ":$PATH:" != *":${BIN_DIR}:"* ]]; then
     echo ""
     echo "⚠️  ${BIN_DIR} is not in your PATH."
@@ -105,7 +104,6 @@ if [[ ":$PATH:" != *":${BIN_DIR}:"* ]]; then
     echo "   export PATH=\"\${PATH}:${BIN_DIR}\""
 fi
 
-# Check if an AppImage or executable already exists
 FOUND_APPIMAGE=""
 if [ -n "${ORCA_APPIMAGE:-}" ] && [ -e "${ORCA_APPIMAGE}" ]; then
     FOUND_APPIMAGE="${ORCA_APPIMAGE}"
@@ -140,13 +138,13 @@ if [ -n "${FOUND_APPIMAGE}" ]; then
     echo "  ✓ Found local executable: ${FOUND_APPIMAGE}"
 else
     echo "  ⚠️  No local Orca AppImage found."
-    echo "  ==> Attempting to fetch latest mirrored AppImage from GitHub Releases..."
+    echo "  ==> Downloading official AppImage from stablyai/orca..."
     if "${BIN_DIR}/orca-desktop-sandbox" --download; then
-        echo "  ✓ Mirrored AppImage downloaded successfully!"
+        echo "  ✓ Official AppImage downloaded."
     else
-        echo "  ⚠️  Could not download mirrored release yet (Actions may not have published one)."
-        echo "  Download manually from: https://github.com/stablyai/orca/releases"
-        echo "  or: https://www.onorca.dev/download"
+        echo "  ⚠️  Automatic download failed."
+        echo "  Get it from: https://www.onorca.dev/download"
+        echo "  or: https://github.com/stablyai/orca/releases"
         echo "  Place AppImage in ~/.local/bin or set ORCA_APPIMAGE."
     fi
 fi
@@ -156,6 +154,6 @@ echo "==> Done!"
 echo "Before first run, edit your network rules:"
 echo "  vim ${PROFILE_DIR}/orca-desktop.net"
 echo ""
-echo "Then launch via application menu or run:  orca-desktop-sandbox"
-echo "To update the AppImage anytime:           orca-desktop-sandbox --update"
+echo "Then launch:  orca-desktop-sandbox"
+echo "Update app:   orca-desktop-sandbox --update"
 echo ""

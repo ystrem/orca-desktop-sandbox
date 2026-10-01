@@ -1,0 +1,42 @@
+name: Validate sandbox scripts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bash syntax check
+        run: |
+          set -euo pipefail
+          bash -n install.sh
+          bash -n run-orca-desktop.sh
+          echo "bash -n OK"
+
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: '.'
+          ignore_paths: .github
+          severity: warning
+
+      - name: Firejail profile sanity
+        run: |
+          set -euo pipefail
+          # Basic structure checks without requiring firejail on the runner
+          grep -q 'caps.drop all' orca-desktop.local
+          grep -q 'read-only ${HOME}' orca-desktop.local
+          grep -q 'read-write ${HOME}/.orca' orca-desktop.local
+          grep -q 'private-tmp' orca-desktop.local
+          grep -q 'noroot' orca-desktop.local
+          grep -q 'seccomp' orca-desktop.local
+          grep -q 'blacklist /var/run/docker.sock' orca-desktop.local || grep -q 'blacklist /run/docker.sock' orca-desktop.local
+          grep -q 'OUTPUT -j REJECT' orca-desktop.net
+          grep -q 'INPUT' orca-desktop.net
+          echo "profile checks OK"

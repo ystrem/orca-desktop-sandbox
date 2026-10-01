@@ -26,100 +26,67 @@ Sandboxing with Firejail restricts:
 | --- | --- |
 | `orca-desktop.local` | Firejail profile — sandbox rules |
 | `orca-desktop.net` | Netfilter rules — restrict to specific IPs/domains |
-| `run-orca-desktop.sh` | Wrapper script to launch the sandboxed desktop & check for updates |
-| `install.sh` | Setup script (copies profiles, launcher, desktop entry) |
-| `.github/workflows/mirror-orca.yml` | GitHub Actions — mirrors official Orca Linux AppImage every 6h |
+| `run-orca-desktop.sh` | Wrapper: finds or downloads official AppImage, runs under Firejail |
+| `install.sh` | Copies profiles, launcher, desktop entry |
+| `.github/workflows/validate.yml` | CI: bash -n, ShellCheck, basic profile checks |
 | `SECURITY-REVIEW.md` | Known gaps and hardening notes |
+
+This repo does **not** rebuild or re-host the Orca binary. `--update` pulls the official AppImage straight from [stablyai/orca releases](https://github.com/stablyai/orca/releases).
 
 ## Quick start
 
 ```bash
-# Install Firejail (Arch/CachyOS)
-sudo pacman -S firejail
-# Debian/Ubuntu: sudo apt install firejail
+# Install Firejail
+sudo pacman -S firejail   # Arch
+# sudo apt install firejail
 
-# Clone and install
 git clone https://github.com/ystrem/orca-desktop-sandbox
 cd orca-desktop-sandbox
 bash install.sh
 
-# EDIT the netfilter rules before first run:
 vim ~/.config/firejail/orca-desktop.net
-# → uncomment / add lines with your remote orca serve IPs (Tailscale 100.x, LAN, etc.)
+# → add your remote orca serve IP (Tailscale 100.x / LAN)
 
-# Launch sandboxed Orca from application menu or terminal:
 orca-desktop-sandbox
 ```
 
 ## Features
 
-* **Mirrored AppImages via GitHub Actions** — workflow checks `stablyai/orca` every 6 hours and re-publishes the official Linux AppImage to this repo’s Releases (tag `orca-vX.Y.Z`)
-* **One-Click Auto-Updates** — `orca-desktop-sandbox --update` downloads the latest mirrored AppImage
-* **Desktop Menu Entry** — creates `~/.local/share/applications/orca-desktop-sandbox.desktop`
-* **CLI Argument Forwarding** — pass flags directly to the AppImage (e.g. `orca-desktop-sandbox --devtools`)
-* **Flexible Binary Discovery** — auto-detects AppImages, unpacked executables, or `ORCA_APPIMAGE`
-* **Easy Uninstall** — `bash install.sh --uninstall`
+* **Official AppImage only** — `orca-desktop-sandbox --update` downloads from `stablyai/orca`, no third-party rebuild
+* **Desktop menu entry**
+* **CLI arg forwarding** (e.g. `--devtools`)
+* **Auto-discovery** of AppImage / `orca-ide` / `ORCA_APPIMAGE`
+* **Uninstall**: `bash install.sh --uninstall`
 
 ## Network isolation
 
-By default, Orca can **only** talk to:
-
-* localhost (127.0.0.1 / ::1)
-* DNS
-* **Whitelisted IPs/hosts** specified in `orca-desktop.net`
-
-To whitelist your remote `orca serve` hosts, edit `~/.config/firejail/orca-desktop.net`:
+By default outbound is limited to loopback, DNS, and hosts you list in `orca-desktop.net`:
 
 ```
--A OUTPUT -d 100.64.1.20/32 -j ACCEPT   # Tailscale example
--A OUTPUT -d 192.168.1.50/32 -j ACCEPT  # LAN example
+-A OUTPUT -d 100.64.1.20/32 -j ACCEPT
 ```
 
-*Note:* For Firejail netfilter rules to take effect, Firejail requires an active network namespace. You can pass `--net=default` or uncomment `net default` in `orca-desktop.local`.
+For netfilter to apply, enable a network namespace (`net default` in the profile or `--net=default`).
 
-## Environment Variables
+## Environment variables
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `ORCA_APPIMAGE` | Path to explicit Orca AppImage or executable | Auto-detected |
-| `ORCA_SANDBOX_REPO` | `owner/repo` for mirrored releases | `ystrem/orca-desktop-sandbox` |
-| `ORCA_PROFILE_DIR` | Firejail profiles directory | `${HOME}/.config/firejail` |
-| `ORCA_BIN_DIR` | Executable launcher bin directory | `${HOME}/.local/bin` |
-| `ORCA_DESKTOP_DIR` | XDG desktop entries directory | `${HOME}/.local/share/applications` |
-
-## Microphone (dictation)
-
-Microphone works — the profile preserves PulseAudio/PipeWire sockets and `/dev/snd` access. If audio stops working, check that `nogroups` is **not** set.
+| `ORCA_APPIMAGE` | Path to AppImage / binary | Auto-detected |
+| `ORCA_UPSTREAM_REPO` | Release source for `--update` | `stablyai/orca` |
+| `ORCA_PROFILE_DIR` | Firejail profiles | `~/.config/firejail` |
+| `ORCA_BIN_DIR` | Launcher + downloaded AppImage | `~/.local/bin` |
+| `ORCA_DESKTOP_DIR` | `.desktop` files | `~/.local/share/applications` |
 
 ## What gets restricted
 
-| Area | Restriction |
-| --- | --- |
-| SSH keys | Blocked (`~/.ssh`) |
-| GPG keys | Blocked (`~/.gnupg`) |
-| Cloud credentials | Blocked (`~/.aws`, `~/.azure`, `~/.kube`, `~/.config/gcloud`) |
-| Password stores | Blocked (Bitwarden, 1Password, KeePassXC, password-store) |
-| Browser data | Blocked (Chromium, Chrome, Brave, Edge, Firefox, …) |
-| Developer tokens | Blocked (`~/.npmrc`, `~/.pypirc`, `~/.cargo/credentials*`, `~/.config/gh`) |
-| Shell history | Blocked |
-| Docker/Podman sockets | Blocked |
-| `/tmp` | Private (fresh tmpfs) |
-| Network | Only 127.0.0.1 + whitelisted IPs |
-| Kernel | No new privileges, seccomp |
-| Capabilities | All dropped |
+SSH/GPG/cloud creds, password managers, browser profiles, shell history, docker/podman sockets, writable home (except `~/.orca` + Electron config), capabilities, private `/tmp`, seccomp, noroot.
 
-## GitHub Actions (mirror)
+## CI
 
-Unlike Hermes (which builds the AppImage from source), Orca already publishes official Linux AppImages. This repo’s workflow:
-
-1. Polls [stablyai/orca](https://github.com/stablyai/orca) releases every 6 hours (and on manual dispatch)
-2. Downloads the official `orca-linux.AppImage` (or any `*.AppImage` fallback)
-3. Creates a release here tagged `orca-vX.Y.Z` with the unmodified binary + SHA256
-
-Trigger manually: **Actions → Mirror Orca Linux AppImage → Run workflow** (optionally force).
+`validate.yml` runs on push/PR: `bash -n`, ShellCheck, and a few firejail profile sanity greps. No AppImage is downloaded or uploaded in CI.
 
 ## Related
 
-* Inspired by [hermes-desktop-sandbox](https://github.com/ystrem/hermes-desktop-sandbox)
-* Orca: [onorca.dev](https://www.onorca.dev/) · [stablyai/orca](https://github.com/stablyai/orca)
-* Headless server guide: [headless-linux-server.md](https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md)
+* [hermes-desktop-sandbox](https://github.com/ystrem/hermes-desktop-sandbox) (builds Hermes AppImage — different problem)
+* [onorca.dev](https://www.onorca.dev/) · [stablyai/orca](https://github.com/stablyai/orca)
